@@ -13,3 +13,8 @@ D:\repos\PBPROG_TFSBot\src\BasicBot\obj\Debug\netcoreapp2.1\BasicBot.AssemblyInf
 D:\repos\PBPROG_TFSBot\src\BasicBot\obj\Debug\netcoreapp2.1\BasicBot.RazorTargetAssemblyInfo.cache
 D:\repos\PBPROG_TFSBot\src\BasicBot\obj\Debug\netcoreapp2.1\BasicBot.dll
 D:\repos\PBPROG_TFSBot\src\BasicBot\obj\Debug\netcoreapp2.1\BasicBot.pdb
+D:\repos\PBPROG_TFSBot\src\BasicBot\bin\Debug\netcoreapp2.1\TfsBot.Common.dll
+D:\repos\PBPROG_TFSBot\src\BasicBot\bin\Debug\netcoreapp2.1\TfsBot.Common.pdb
+D:\repos\PBPROG_TFSBot\src\BasicBot\bin\Debug\netcoreapp2.1\TfsBot.Common.dll.config
+D:\repos\PBPROG_TFSBot\src\BasicBot\obj\Debug\netcoreapp2.1\BasicBot.csprojAssemblyReference.cache
+D:\repos\PBPROG_TFSBot\src\BasicBot\obj\Debug\netcoreapp2.1\BasicBot.csproj.CopyComplete

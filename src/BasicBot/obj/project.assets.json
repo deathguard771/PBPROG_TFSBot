@@ -710,7 +710,7 @@
           "lib/netstandard2.0/Microsoft.AspNetCore.Html.Abstractions.dll": {}
         }
       },
-      "Microsoft.AspNetCore.Http/2.2.0": {
+      "Microsoft.AspNetCore.Http/2.2.2": {
         "type": "package",
         "dependencies": {
           "Microsoft.AspNetCore.Http.Abstractions": "2.2.0",
@@ -5115,6 +5115,15 @@
         "runtime": {
           "lib/netstandard1.3/Microsoft.WindowsAzure.Storage.dll": {}
         }
+      },
+      "TfsBot.Common/1.0.0": {
+        "type": "project",
+        "compile": {
+          "bin/placeholder/TfsBot.Common.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/TfsBot.Common.dll": {}
+        }
       }
     }
   },
@@ -5653,16 +5662,16 @@
         "microsoft.aspnetcore.html.abstractions.nuspec"
       ]
     },
-    "Microsoft.AspNetCore.Http/2.2.0": {
-      "sha512": "1jsV5N1hykNJN1uIY+DI4C0zrnBzsJ/dNkwCLuGNcxTAkXcQzxGclSqi45KTm/0Og2kOss4BZGDHQboB9D4gGA==",
+    "Microsoft.AspNetCore.Http/2.2.2": {
+      "sha512": "BAibpoItxI5puk7YJbIGj95arZueM8B8M5xT1fXBn3hb3L2G3ucrZcYXv1gXdaroLbntUs8qeV8iuBrpjQsrKw==",
       "type": "package",
-      "path": "microsoft.aspnetcore.http/2.2.0",
+      "path": "microsoft.aspnetcore.http/2.2.2",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
         "lib/netstandard2.0/Microsoft.AspNetCore.Http.dll",
         "lib/netstandard2.0/Microsoft.AspNetCore.Http.xml",
-        "microsoft.aspnetcore.http.2.2.0.nupkg.sha512",
+        "microsoft.aspnetcore.http.2.2.2.nupkg.sha512",
         "microsoft.aspnetcore.http.nuspec"
       ]
     },
@@ -17701,12 +17710,18 @@
         "windowsazure.storage.9.3.2.nupkg.sha512",
         "windowsazure.storage.nuspec"
       ]
+    },
+    "TfsBot.Common/1.0.0": {
+      "type": "project",
+      "path": "../TfsBot.Common/TfsBot.Common.csproj",
+      "msbuildProject": "../TfsBot.Common/TfsBot.Common.csproj"
     }
   },
   "projectFileDependencyGroups": {
     ".NETCoreApp,Version=v2.1": [
       "Microsoft.ApplicationInsights.AspNetCore >= 2.1.1",
       "Microsoft.AspNetCore.All >= 2.0.8",
+      "Microsoft.AspNetCore.Http >= 2.2.2",
       "Microsoft.AspNetCore.Mvc >= 2.2.0",
       "Microsoft.Azure.CognitiveServices.ContentModerator >= 0.12.1-preview",
       "Microsoft.Azure.CognitiveServices.Language >= 1.0.1-preview",
@@ -17721,7 +17736,8 @@
       "Microsoft.Graph >= 1.10.0",
       "Microsoft.NETCore.App >= 2.1.0",
       "Npm >= 3.5.2",
-      "StyleCop.Analyzers >= 1.1.0-beta008"
+      "StyleCop.Analyzers >= 1.1.0-beta008",
+      "TfsBot.Common >= 1.0.0"
     ]
   },
   "packageFolders": {
@@ -17754,7 +17770,11 @@
       },
       "frameworks": {
         "netcoreapp2.1": {
-          "projectReferences": {}
+          "projectReferences": {
+            "D:\\repos\\PBPROG_TFSBot\\src\\TfsBot.Common\\TfsBot.Common.csproj": {
+              "projectPath": "D:\\repos\\PBPROG_TFSBot\\src\\TfsBot.Common\\TfsBot.Common.csproj"
+            }
+          }
         }
       },
       "warningProperties": {
@@ -17773,6 +17793,10 @@
           "Microsoft.AspNetCore.All": {
             "target": "Package",
             "version": "[2.0.8, )"
+          },
+          "Microsoft.AspNetCore.Http": {
+            "target": "Package",
+            "version": "[2.2.2, )"
           },
           "Microsoft.AspNetCore.Mvc": {
             "target": "Package",

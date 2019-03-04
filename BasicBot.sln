@@ -4,6 +4,8 @@ VisualStudioVersion = 15.0.27428.2043
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BasicBot", "src\BasicBot\BasicBot.csproj", "{FCA4E9C5-FB06-46B1-BF97-4FD3A30E3651}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TfsBot.Common", "src\TfsBot.Common\TfsBot.Common.csproj", "{CC06BC15-F2F9-4B01-93D2-11488F4F91F0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -14,6 +16,10 @@ Global
 		{FCA4E9C5-FB06-46B1-BF97-4FD3A30E3651}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FCA4E9C5-FB06-46B1-BF97-4FD3A30E3651}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FCA4E9C5-FB06-46B1-BF97-4FD3A30E3651}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CC06BC15-F2F9-4B01-93D2-11488F4F91F0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CC06BC15-F2F9-4B01-93D2-11488F4F91F0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CC06BC15-F2F9-4B01-93D2-11488F4F91F0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CC06BC15-F2F9-4B01-93D2-11488F4F91F0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
