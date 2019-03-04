@@ -4,6 +4,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using BasicBot.Infrastructure;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Bot.Builder;
@@ -59,6 +60,8 @@ namespace Microsoft.BotBuilderSamples
         /// <param name="services">Specifies the contract for a <see cref="IServiceCollection"/> of service descriptors.</param>
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddSingleton<IDialogsRepository, InMemoryDialogsRepository>();
+
             var secretKey = Configuration.GetSection("botFileSecret")?.Value;
             var botFilePath = Configuration.GetSection("botFilePath")?.Value;
             if (!File.Exists(botFilePath))
