@@ -10,6 +10,7 @@ using Microsoft.Bot.Configuration;
 using Microsoft.Bot.Connector;
 using Microsoft.Bot.Connector.Authentication;
 using Microsoft.Bot.Schema;
+using TfsBot.Common.Dtos;
 
 namespace BasicBot.Controllers
 {
@@ -32,9 +33,25 @@ namespace BasicBot.Controllers
             return Ok(_dialogsRepository.GetAllDialogs());
         }
 
-        [Route("~/tfs/commit")]
+        //[Route("~/tfs/commit")]
+        //[HttpPost]
+        //public async Task<IActionResult> SendSkypeMessage()
+        //{
+        //    await SendMessage(null);
+        //    return Ok();
+        //}
+
+        [HttpGet]
         [HttpPost]
-        public async Task<IActionResult> SendSkypeMessage()
+        [Route("~/tfs/commit/")]
+        public async Task<IActionResult> CodeCheckedIn([FromBody] CodeCheckedInRequest req)
+        {
+            var message = GetCodeCheckedInMessage(req);
+            await SendMessage(string.Join(Environment.NewLine, message));
+            return Ok();
+        }
+
+        private async Task SendMessage(string messageText)
         {
             var activity = _dialogsRepository.GetAllDialogs().LastOrDefault();
 
@@ -68,10 +85,14 @@ namespace BasicBot.Controllers
             message.From = botAccount;
             message.Recipient = userAccount;
             message.Conversation = new ConversationAccount(id: conversationId ?? activity.Conversation.Id);
-            message.Text = "COMMIT";
+            message.Text = messageText ?? "commit";
             message.Locale = "en-us";
             await connector.Conversations.SendToConversationAsync((Activity)message);
-            return Ok();
+        }
+
+        private static IEnumerable<string> GetCodeCheckedInMessage(CodeCheckedInRequest req)
+        {
+            yield return $"**COMMIT {req.Resource.ChangesetId}** {req.Message.Markdown} ([link]({req.Resource.Url}))";
         }
     }
 }
