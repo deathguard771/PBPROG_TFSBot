@@ -1,0 +1,5 @@
+*.dll
+*.pdb
+/bin
+/.vs/BasicBot/v15
+/obj
