@@ -1,0 +1,15 @@
+D:\repos\PBPROG_TFSBot\src\BasicBot\bin\Debug\netcoreapp2.1\PBPROG_TFSBot.bot
+D:\repos\PBPROG_TFSBot\src\BasicBot\bin\Debug\netcoreapp2.1\BasicBot.deps.json
+D:\repos\PBPROG_TFSBot\src\BasicBot\bin\Debug\netcoreapp2.1\BasicBot.runtimeconfig.json
+D:\repos\PBPROG_TFSBot\src\BasicBot\bin\Debug\netcoreapp2.1\BasicBot.runtimeconfig.dev.json
+D:\repos\PBPROG_TFSBot\src\BasicBot\bin\Debug\netcoreapp2.1\BasicBot.dll
+D:\repos\PBPROG_TFSBot\src\BasicBot\bin\Debug\netcoreapp2.1\BasicBot.pdb
+D:\repos\PBPROG_TFSBot\src\BasicBot\obj\Debug\netcoreapp2.1\BasicBot.csproj.CoreCompileInputs.cache
+D:\repos\PBPROG_TFSBot\src\BasicBot\obj\Debug\netcoreapp2.1\BasicBot.RazorAssemblyInfo.cache
+D:\repos\PBPROG_TFSBot\src\BasicBot\obj\Debug\netcoreapp2.1\BasicBot.RazorAssemblyInfo.cs
+D:\repos\PBPROG_TFSBot\src\BasicBot\obj\Debug\netcoreapp2.1\UserSecretsAssemblyInfo.cs
+D:\repos\PBPROG_TFSBot\src\BasicBot\obj\Debug\netcoreapp2.1\BasicBot.AssemblyInfoInputs.cache
+D:\repos\PBPROG_TFSBot\src\BasicBot\obj\Debug\netcoreapp2.1\BasicBot.AssemblyInfo.cs
+D:\repos\PBPROG_TFSBot\src\BasicBot\obj\Debug\netcoreapp2.1\BasicBot.RazorTargetAssemblyInfo.cache
+D:\repos\PBPROG_TFSBot\src\BasicBot\obj\Debug\netcoreapp2.1\BasicBot.dll
+D:\repos\PBPROG_TFSBot\src\BasicBot\obj\Debug\netcoreapp2.1\BasicBot.pdb
