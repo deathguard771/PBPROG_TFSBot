@@ -3,3 +3,5 @@
 /bin
 /.vs/BasicBot/v15
 /obj
+/TfsBot.Common/obj
+/TfsBot.Common/bin

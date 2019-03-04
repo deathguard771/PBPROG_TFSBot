@@ -6,6 +6,7 @@ using BasicBot.Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Bot.Builder;
+using Microsoft.Bot.Configuration;
 using Microsoft.Bot.Connector;
 using Microsoft.Bot.Connector.Authentication;
 using Microsoft.Bot.Schema;
@@ -15,10 +16,12 @@ namespace BasicBot.Controllers
     public class TfsController : ControllerBase
     {
         private IDialogsRepository _dialogsRepository;
+        private BotConfiguration _botConfiguration;
 
-        public TfsController(IDialogsRepository dialogsRepository)
+        public TfsController(IDialogsRepository dialogsRepository, Microsoft.Bot.Configuration.BotConfiguration botConfiguration)
         {
             _dialogsRepository = dialogsRepository;
+            _botConfiguration = botConfiguration;
         }
 
         [HttpGet]
@@ -35,7 +38,9 @@ namespace BasicBot.Controllers
         {
             var activity = _dialogsRepository.GetAllDialogs().LastOrDefault();
 
-            var account = new MicrosoftAppCredentials("3633dfcf-c9e7-4d7a-adc2-b21daedda652", "vgtJSBCW522!??fouoBV95:");
+            var endpointService = _botConfiguration.Services.FirstOrDefault(x => typeof(EndpointService).Equals(x.GetType()) && x.Name.Equals("production")) as EndpointService;
+
+            var account = new MicrosoftAppCredentials(endpointService.AppId, endpointService.AppPassword);
             var token = await account.GetTokenAsync();
 
             MicrosoftAppCredentials.TrustServiceUrl(activity.ServiceUrl, DateTime.Now.AddDays(7));
