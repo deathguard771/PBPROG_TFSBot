@@ -69,7 +69,7 @@ namespace TfsBot.Controllers
 
         [HttpGet]
         [HttpPost]
-        [Route("~/api/webhooks/test/{id}")]
+        [Route("~/api/webhooks/commit/{id}")]
         public async Task<IActionResult> CodeCheckedIn(string id, [FromBody] CodeCheckedInRequest req)
         {
             TrackEvent("build", id, req.EventType);
@@ -119,7 +119,10 @@ namespace TfsBot.Controllers
                 return;
             }
 
-            var clients = _repository.GetServerClients(id);
+            var msg = string.Join(Environment.NewLine + Environment.NewLine, messages);
+
+            /*
+             * var clients = _repository.GetServerClients(id);
             if (clients.Count == 0)
             {
                 throw new ArgumentException($"There are no clients for id: {id}");
@@ -127,11 +130,13 @@ namespace TfsBot.Controllers
 
             foreach (var client in clients)
             {
-                var msg = string.Join(Environment.NewLine + Environment.NewLine, messages);
 
-                // await BotHelper.SendMessageToClient(client, msg);
-                await SendMsg(msg);
+                await BotHelper.SendMessageToClient(client, msg);
+
             }
+            */
+
+            await SendMsg(msg);
         }
 
         private async Task SendMsg(string text)

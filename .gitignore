@@ -6,3 +6,7 @@
 /TfsBot.Common/obj
 /TfsBot.Common/bin
 /packages
+/src/TfsBot.Common/obj/Release
+/src/TfsBot.Common/bin/Release
+/src/BasicBot/obj/Release/netcoreapp2.1
+/src/BasicBot/bin/Release/netcoreapp2.1
