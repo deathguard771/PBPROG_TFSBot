@@ -14,6 +14,8 @@ using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Bot.Schema;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using TfsBot.Common.Db;
+using TfsBot.Common.Entities;
 
 namespace Microsoft.BotBuilderSamples
 {
@@ -27,6 +29,7 @@ namespace Microsoft.BotBuilderSamples
         public const string CancelIntent = "Cancel";
         public const string HelpIntent = "Help";
         public const string NoneIntent = "None";
+        public const string Setup = "Setup";
 
         /// <summary>
         /// Key in the bot config (.bot file) for the LUIS instance.
@@ -37,6 +40,7 @@ namespace Microsoft.BotBuilderSamples
         private readonly IStatePropertyAccessor<GreetingState> _greetingStateAccessor;
         private readonly IStatePropertyAccessor<DialogState> _dialogStateAccessor;
         private readonly IDialogsRepository _dialogsRepository;
+        private readonly IRepository _repository;
         private readonly UserState _userState;
         private readonly ConversationState _conversationState;
         private readonly BotServices _services;
@@ -46,7 +50,7 @@ namespace Microsoft.BotBuilderSamples
         /// </summary>
         /// <param name="botServices">Bot services.</param>
         /// <param name="accessors">Bot State Accessors.</param>
-        public BasicBot(BotServices services, UserState userState, ConversationState conversationState, ILoggerFactory loggerFactory, IDialogsRepository dialogsRepository)
+        public BasicBot(BotServices services, UserState userState, ConversationState conversationState, ILoggerFactory loggerFactory, IDialogsRepository dialogsRepository, IRepository repository)
         {
             _services = services ?? throw new ArgumentNullException(nameof(services));
             _userState = userState ?? throw new ArgumentNullException(nameof(userState));
@@ -56,6 +60,7 @@ namespace Microsoft.BotBuilderSamples
             _dialogStateAccessor = _conversationState.CreateProperty<DialogState>(nameof(DialogState));
 
             _dialogsRepository = dialogsRepository;
+            _repository = repository;
 
             // Verify LUIS configuration.
             if (!_services.LuisServices.ContainsKey(LuisConfiguration))
@@ -86,6 +91,9 @@ namespace Microsoft.BotBuilderSamples
             if (activity.Type == ActivityTypes.Message)
             {
                 _dialogsRepository.AddDialog(activity);
+                var servParams = new ServerParams();
+                await SetServerIdAsync(activity, servParams);
+
                 // Perform a call to LUIS to retrieve results for the current activity message.
                 var luisResults = await _services.LuisServices[LuisConfiguration].RecognizeAsync(dc.Context, cancellationToken);
 
@@ -129,7 +137,7 @@ namespace Microsoft.BotBuilderSamples
                                 default:
                                     // Help or no intent identified, either way, let's provide some help.
                                     // to the user
-                                    await dc.Context.SendActivityAsync("I didn't understand what you just said to me.");
+                                    await dc.Context.SendActivityAsync($"I didn't understand what you just said to me. {servParams.Id}");
                                     break;
                             }
 
@@ -171,6 +179,26 @@ namespace Microsoft.BotBuilderSamples
 
             await _conversationState.SaveChangesAsync(turnContext);
             await _userState.SaveChangesAsync(turnContext);
+        }
+
+        private async Task SetServerIdAsync(Activity activity, ServerParams serverParams)
+        {
+            serverParams.Id = ServerParams.New("pcpo").Id;
+
+            var serverClient = new ServerClient(serverParams.Id, activity.Conversation.Id)
+            {
+                UserName = activity.Conversation.Name,
+                BotServiceUrl = activity.ServiceUrl,
+                BotId = activity.Recipient.Id,
+                BotName = activity.Recipient.Name,
+                ReplaceFrom = serverParams.ReplaceFrom,
+                ReplaceTo = serverParams.ReplaceTo,
+                ConversationId = activity.Conversation.Id,
+                ChannelId = activity.ChannelId,
+            };
+            await _repository.SaveServiceClient(serverClient);
+            var client = new Client(serverParams.Id, activity.Conversation.Id, activity.Conversation.Name);
+            await _repository.SaveClient(client);
         }
 
         // Determine if an interruption has occurred before we dispatch to any active dialog.

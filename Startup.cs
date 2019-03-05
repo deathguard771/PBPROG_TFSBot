@@ -15,6 +15,7 @@ using Microsoft.Bot.Connector.Authentication;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using TfsBot.Common.Db;
 
 namespace Microsoft.BotBuilderSamples
 {
@@ -61,6 +62,20 @@ namespace Microsoft.BotBuilderSamples
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddSingleton<IDialogsRepository, InMemoryDialogsRepository>();
+
+            //if (configuration.StorageConnectionString != null)
+            //{
+            //    System.Diagnostics.Trace.TraceInformation("For repository will be used DB repository");
+            //    services.AddScoped<IRepository, Repository>();
+            //}
+            //else
+            //{
+            //    System.Diagnostics.Trace.TraceInformation("For repository will be used in memory repository");
+            //    services.AddSingleton<IRepository, InMemoryRepository>();
+            //}
+
+            System.Diagnostics.Trace.TraceInformation("For repository will be used DB repository");
+            services.AddScoped<IRepository, Repository>();
 
             var secretKey = Configuration.GetSection("botFileSecret")?.Value;
             var botFilePath = Configuration.GetSection("botFilePath")?.Value;
