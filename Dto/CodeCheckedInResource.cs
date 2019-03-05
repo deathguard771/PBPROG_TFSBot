@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using BasicBot.Dto;
 
 namespace TfsBot.Common.Dtos
 {
@@ -13,13 +15,16 @@ namespace TfsBot.Common.Dtos
         public Author CheckedInBy { get; set; }
 
         public string Comment { get; set; }
-        
+
         public DateTime CreatedDate { get; set; }
+
+        public IEnumerable<WorkItem> WorkItems { get; set; }
     }
 
     public class Author
     {
         public string DisplayName { get; set; }
+
         public string UniqueName { get; set; }
     }
 }

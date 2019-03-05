@@ -65,7 +65,13 @@ namespace BasicBot.Controllers
 
         private static IEnumerable<string> GetCodeCheckedInMessage(CodeCheckedInRequest req)
         {
-            yield return $"**COMMIT {req.Resource.ChangesetId}** {req.Message.Markdown} ([link]({req.Resource.Url}))";
+            var baseMessage = $"**COMMIT {req.Resource.ChangesetId}** {req.DetailedMessage.Markdown} ([link]({req.Resource.Url})){Environment.NewLine}";
+
+            var itemsMessage = req.Resource.WorkItems.Any()
+                ? Environment.NewLine + string.Join(Environment.NewLine, req.Resource.WorkItems.Select(x => $"{x.Id} - {x.Title}"))
+                : string.Empty;
+
+            yield return baseMessage + itemsMessage;
         }
 
         private async Task SendMessage(string messageText)
