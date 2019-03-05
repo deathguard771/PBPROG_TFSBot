@@ -67,7 +67,7 @@ namespace BasicBot.Controllers
         {
             var baseMessage = $"**COMMIT {req.Resource.ChangesetId}** {req.DetailedMessage.Markdown} ([link]({req.Resource.Url})){Environment.NewLine}";
 
-            var itemsMessage = req.Resource.WorkItems.Any()
+            var itemsMessage = req.Resource.WorkItems?.Any() == true
                 ? Environment.NewLine + string.Join(Environment.NewLine, req.Resource.WorkItems.Select(x => $"{x.Id} - {x.Title}"))
                 : string.Empty;
 
