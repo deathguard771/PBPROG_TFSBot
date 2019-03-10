@@ -7,7 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using BasicBot.Dialogs.Greeting;
+using BasicBot.Dialogs.Setup;
 using BasicBot.Infrastructure;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Dialogs;
@@ -38,6 +38,7 @@ namespace Microsoft.BotBuilderSamples
         public static readonly string LuisConfiguration = "BasicBotLuisApplication";
 
         private readonly IStatePropertyAccessor<GreetingState> _greetingStateAccessor;
+        private readonly IStatePropertyAccessor<SetupState> _setupStateAccessor;
         private readonly IStatePropertyAccessor<DialogState> _dialogStateAccessor;
         private readonly IDialogsRepository _dialogsRepository;
         private readonly IRepository _repository;
@@ -48,8 +49,12 @@ namespace Microsoft.BotBuilderSamples
         /// <summary>
         /// Initializes a new instance of the <see cref="BasicBot"/> class.
         /// </summary>
-        /// <param name="botServices">Bot services.</param>
-        /// <param name="accessors">Bot State Accessors.</param>
+        /// <param name="services">Bot services.</param>
+        /// <param name="userState">Bot State Accessors.</param>
+        /// /// <param name="conversationState">Conversation state.</param>
+        /// <param name="loggerFactory">Logging.</param>
+        /// <param name="dialogsRepository">Repository for save activity.</param>
+        /// <param name="repository">Repository for keeping conversation to server relationsheep.</param>
         public BasicBot(BotServices services, UserState userState, ConversationState conversationState, ILoggerFactory loggerFactory, IDialogsRepository dialogsRepository, IRepository repository)
         {
             _services = services ?? throw new ArgumentNullException(nameof(services));
@@ -57,6 +62,7 @@ namespace Microsoft.BotBuilderSamples
             _conversationState = conversationState ?? throw new ArgumentNullException(nameof(conversationState));
 
             _greetingStateAccessor = _userState.CreateProperty<GreetingState>(nameof(GreetingState));
+            _setupStateAccessor = _userState.CreateProperty<SetupState>(nameof(SetupState));
             _dialogStateAccessor = _conversationState.CreateProperty<DialogState>(nameof(DialogState));
 
             _dialogsRepository = dialogsRepository;
@@ -69,7 +75,9 @@ namespace Microsoft.BotBuilderSamples
             }
 
             Dialogs = new DialogSet(_dialogStateAccessor);
+            Dialogs.Add(new SetupDialog(_setupStateAccessor, loggerFactory, _repository));
             Dialogs.Add(new GreetingDialog(_greetingStateAccessor, loggerFactory));
+
             //Dialogs.Add(new TeamFoundationServerMonolog(_greetingStateAccessor, loggerFactory));
         }
 
@@ -90,32 +98,28 @@ namespace Microsoft.BotBuilderSamples
 
             if (activity.Type == ActivityTypes.Message)
             {
-                _dialogsRepository.AddDialog(activity);
-                var servParams = new ServerParams();
-                await SetServerIdAsync(activity, servParams);
-
                 // Perform a call to LUIS to retrieve results for the current activity message.
-                var luisResults = await _services.LuisServices[LuisConfiguration].RecognizeAsync(dc.Context, cancellationToken);
+                //var luisResults = await _services.LuisServices[LuisConfiguration].RecognizeAsync(dc.Context, cancellationToken);
 
-                // If any entities were updated, treat as interruption.
-                // For example, "no my name is tony" will manifest as an update of the name to be "tony".
-                var topScoringIntent = luisResults?.GetTopScoringIntent();
+                //// If any entities were updated, treat as interruption.
+                //// For example, "no my name is tony" will manifest as an update of the name to be "tony".
+                //var topScoringIntent = luisResults?.GetTopScoringIntent();
 
-                var topIntent = topScoringIntent.Value.intent;
+                //var topIntent = topScoringIntent.Value.intent;
 
-                // update greeting state with any entities captured
-                await UpdateGreetingState(luisResults, dc.Context);
+                //// update greeting state with any entities captured
+                //await UpdateGreetingState(luisResults, dc.Context);
 
-                // Handle conversation interrupts first.
-                var interrupted = await IsTurnInterruptedAsync(dc, topIntent);
-                if (interrupted)
-                {
-                    // Bypass the dialog.
-                    // Save state before the next turn.
-                    await _conversationState.SaveChangesAsync(turnContext);
-                    await _userState.SaveChangesAsync(turnContext);
-                    return;
-                }
+                //// Handle conversation interrupts first.
+                //var interrupted = await IsTurnInterruptedAsync(dc, topIntent);
+                //if (interrupted)
+                //{
+                //    // Bypass the dialog.
+                //    // Save state before the next turn.
+                //    await _conversationState.SaveChangesAsync(turnContext);
+                //    await _userState.SaveChangesAsync(turnContext);
+                //    return;
+                //}
 
                 // Continue the current dialog
                 var dialogResult = await dc.ContinueDialogAsync();
@@ -127,19 +131,21 @@ namespace Microsoft.BotBuilderSamples
                     switch (dialogResult.Status)
                     {
                         case DialogTurnStatus.Empty:
-                            switch (topIntent)
-                            {
-                                case GreetingIntent:
-                                    await dc.BeginDialogAsync(nameof(GreetingDialog));
-                                    break;
+                            //switch (topIntent)
+                            //{
+                            //    case GreetingIntent:
+                            //        await dc.BeginDialogAsync(nameof(GreetingDialog));
+                            //        break;
 
-                                case NoneIntent:
-                                default:
-                                    // Help or no intent identified, either way, let's provide some help.
-                                    // to the user
-                                    await dc.Context.SendActivityAsync($"I didn't understand what you just said to me. {servParams.Id}");
-                                    break;
-                            }
+                            //    case NoneIntent:
+                            //    default:
+                            //        // Help or no intent identified, either way, let's provide some help.
+                            //        // to the user
+                            //        await dc.Context.SendActivityAsync($"I didn't understand what you just said to me.");
+                            //        break;
+                            //}
+
+                            var result = await dc.BeginDialogAsync(nameof(SetupDialog), cancellationToken: cancellationToken);
 
                             break;
 
@@ -159,7 +165,6 @@ namespace Microsoft.BotBuilderSamples
             }
             else if (activity.Type == ActivityTypes.ConversationUpdate)
             {
-                _dialogsRepository.AddDialog(activity);
                 if (activity.MembersAdded != null)
                 {
                     // Iterate over all new members added to the conversation.
@@ -179,26 +184,6 @@ namespace Microsoft.BotBuilderSamples
 
             await _conversationState.SaveChangesAsync(turnContext);
             await _userState.SaveChangesAsync(turnContext);
-        }
-
-        private async Task SetServerIdAsync(Activity activity, ServerParams serverParams)
-        {
-            serverParams.Id = ServerParams.New("pcpo").Id;
-
-            var serverClient = new ServerClient(serverParams.Id, activity.Conversation.Id)
-            {
-                UserName = activity.Conversation.Name,
-                BotServiceUrl = activity.ServiceUrl,
-                BotId = activity.Recipient.Id,
-                BotName = activity.Recipient.Name,
-                ReplaceFrom = serverParams.ReplaceFrom,
-                ReplaceTo = serverParams.ReplaceTo,
-                ConversationId = activity.Conversation.Id,
-                ChannelId = activity.ChannelId,
-            };
-            await _repository.SaveServiceClient(serverClient);
-            var client = new Client(serverParams.Id, activity.Conversation.Id, activity.Conversation.Name);
-            await _repository.SaveClient(client);
         }
 
         // Determine if an interruption has occurred before we dispatch to any active dialog.

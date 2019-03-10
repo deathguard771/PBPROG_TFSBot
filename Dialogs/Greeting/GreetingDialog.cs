@@ -28,6 +28,7 @@ namespace Microsoft.BotBuilderSamples
         // Prompts names
         private const string NamePrompt = "namePrompt";
         private const string CityPrompt = "cityPrompt";
+        private const string SetupServerPrompt = "setupPrompt";
 
         // Minimum length requirements for city and name
         private const int NameLengthMinValue = 3;
@@ -42,6 +43,7 @@ namespace Microsoft.BotBuilderSamples
         /// <param name="botServices">Connected services used in processing.</param>
         /// <param name="botState">The <see cref="UserState"/> for storing properties at user-scope.</param>
         /// <param name="loggerFactory">The <see cref="ILoggerFactory"/> that enables logging and tracing.</param>
+        /// <param name="userProfileStateAccessor"><see cref="UserProfileAccessor"/></param>
         public GreetingDialog(IStatePropertyAccessor<GreetingState> userProfileStateAccessor, ILoggerFactory loggerFactory)
             : base(nameof(GreetingDialog))
         {
@@ -161,6 +163,37 @@ namespace Microsoft.BotBuilderSamples
             }
 
             return await GreetUser(stepContext);
+        }
+
+        private async Task<DialogTurnResult> PromptForSetupServerStepAsync(
+                                                WaterfallStepContext stepContext,
+                                                CancellationToken cancellationToken)
+        {
+            var greetingState = await UserProfileAccessor.GetAsync(stepContext.Context);
+
+            // if we have everything we need, greet user and return.
+            if (greetingState != null && !string.IsNullOrWhiteSpace(greetingState.Name) && !string.IsNullOrWhiteSpace(greetingState.City))
+            {
+                return await GreetUser(stepContext);
+            }
+
+            if (string.IsNullOrWhiteSpace(greetingState.Name))
+            {
+                // prompt for name, if missing
+                var opts = new PromptOptions
+                {
+                    Prompt = new Activity
+                    {
+                        Type = ActivityTypes.Message,
+                        Text = "What is your fucking name?",
+                    },
+                };
+                return await stepContext.PromptAsync(NamePrompt, opts);
+            }
+            else
+            {
+                return await stepContext.NextAsync();
+            }
         }
 
         /// <summary>

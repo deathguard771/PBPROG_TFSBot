@@ -12,9 +12,4 @@ namespace Microsoft.BotBuilderSamples
 
         public string City { get; set; }
     }
-
-    public class TfsState
-    {
-        public string Text { get; set; }
-    }
 }
