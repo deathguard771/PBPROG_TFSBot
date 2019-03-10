@@ -18,33 +18,21 @@ namespace BasicBot.Controllers
 {
     public class TfsController : ControllerBase
     {
-        private IDialogsRepository _dialogsRepository;
-        private BotConfiguration _botConfiguration;
         private IRepository _repository;
+        private SkypeHelper _skypeHelper;
 
-        public TfsController(IDialogsRepository dialogsRepository, Microsoft.Bot.Configuration.BotConfiguration botConfiguration, IRepository repository)
+        public TfsController(IRepository repository, SkypeHelper skypeHelper)
         {
-            _dialogsRepository = dialogsRepository;
-            _botConfiguration = botConfiguration;
             _repository = repository;
+            _skypeHelper = skypeHelper;
         }
 
         [HttpGet]
-        [Route("~/tfs/setup")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        public IActionResult Setup()
+        [Route("~/tfs/setup/{id}")]
+        public async Task<IActionResult> Setup(string id)
         {
-            return Ok(_dialogsRepository.GetAllDialogs());
-        }
-
-        [HttpGet]
-        [HttpPost]
-        [Route("~/tfs/commit/")]
-        public async Task<IActionResult> CodeCheckedIn([FromBody] CodeCheckedInRequest req)
-        {
-            var message = GetCodeCheckedInMessage(req);
-            await SendMessage(string.Join(Environment.NewLine, message));
-            return Ok();
+            var clients = await _repository.GetServerClients(id);
+            return Ok(clients.Select(x => x.ConversationId));
         }
 
         [HttpGet]
@@ -57,7 +45,7 @@ namespace BasicBot.Controllers
 
             foreach (var client in clients)
             {
-                await SendMessage(client, string.Join(Environment.NewLine, message));
+                await _skypeHelper.SendMessage(client, string.Join(Environment.NewLine, message));
             }
 
             return Ok();
@@ -72,97 +60,6 @@ namespace BasicBot.Controllers
                 : string.Empty;
 
             yield return baseMessage + itemsMessage;
-        }
-
-        private async Task SendMessage(string messageText)
-        {
-            var activities = _dialogsRepository.GetAllDialogs();
-
-            if (!activities.Any())
-            {
-                return;
-            }
-
-            if (!(_botConfiguration.Services.FirstOrDefault(x => typeof(EndpointService).Equals(x.GetType()) && x.Name.Equals("production")) is EndpointService endpointService))
-            {
-                return;
-            }
-
-            var account = new MicrosoftAppCredentials(endpointService.AppId, endpointService.AppPassword);
-            var token = await account.GetTokenAsync();
-
-            foreach (var activity in activities)
-            {
-                MicrosoftAppCredentials.TrustServiceUrl(activity.ServiceUrl, DateTime.Now.AddDays(1));
-
-                var userAccount = new ChannelAccount(activity.From.Id, activity.From.Name);
-                var botAccount = new ChannelAccount(activity.Recipient.Id, activity.Recipient.Name);
-                var connector = new ConnectorClient(new Uri(activity.ServiceUrl), account, handlers: new TokenHandler(token));
-
-                // Create a new message.
-                IMessageActivity message = Activity.CreateMessageActivity();
-                string conversationId = null;
-                if (!string.IsNullOrEmpty(activity.Conversation.Id) && !string.IsNullOrEmpty(activity.ChannelId))
-                {
-                    // If conversation ID and channel ID was stored previously, use it.
-                    message.ChannelId = activity.ChannelId;
-                }
-                else
-                {
-                    // Conversation ID was not stored previously, so create a conversation. 
-                    // Note: If the user has an existing conversation in a channel, this will likely create a new conversation window.
-                    conversationId = (await connector.Conversations.CreateDirectConversationAsync(botAccount, userAccount)).Id;
-                }
-
-                // Set the address-related properties in the message and send the message.
-                message.From = botAccount;
-                message.Recipient = userAccount;
-                message.Conversation = new ConversationAccount(id: conversationId ?? activity.Conversation.Id);
-                message.Text = messageText ?? "commit";
-                message.Locale = "en-us";
-                await connector.Conversations.SendToConversationAsync((Activity)message);
-            }
-        }
-
-        private async Task SendMessage(ServerClient client, string messageText)
-        {
-            if (!(_botConfiguration.Services.FirstOrDefault(x => typeof(EndpointService).Equals(x.GetType()) && x.Name.Equals("production")) is EndpointService endpointService))
-            {
-                return;
-            }
-
-            var account = new MicrosoftAppCredentials(endpointService.AppId, endpointService.AppPassword);
-            var token = await account.GetTokenAsync();
-
-            MicrosoftAppCredentials.TrustServiceUrl(client.BotServiceUrl, DateTime.Now.AddDays(1));
-
-            var userAccount = new ChannelAccount(client.UserId, client.UserName);
-            var botAccount = new ChannelAccount(client.BotId, client.BotName);
-            var connector = new ConnectorClient(new Uri(client.BotServiceUrl), account, handlers: new TokenHandler(token));
-
-            // Create a new message.
-            IMessageActivity message = Activity.CreateMessageActivity();
-            string conversationId = null;
-            if (!string.IsNullOrEmpty(client.ConversationId) && !string.IsNullOrEmpty(client.ChannelId))
-            {
-                // If conversation ID and channel ID was stored previously, use it.
-                message.ChannelId = client.ChannelId;
-            }
-            else
-            {
-                // Conversation ID was not stored previously, so create a conversation. 
-                // Note: If the user has an existing conversation in a channel, this will likely create a new conversation window.
-                conversationId = (await connector.Conversations.CreateDirectConversationAsync(botAccount, userAccount)).Id;
-            }
-
-            // Set the address-related properties in the message and send the message.
-            message.From = botAccount;
-            message.Recipient = userAccount;
-            message.Conversation = new ConversationAccount(id: conversationId ?? client.ConversationId);
-            message.Text = messageText ?? "commit";
-            message.Locale = "en-us";
-            await connector.Conversations.SendToConversationAsync((Activity)message);
-
         }
     }
 }
