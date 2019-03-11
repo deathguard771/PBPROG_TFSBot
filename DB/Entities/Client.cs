@@ -2,9 +2,9 @@
 
 namespace TfsBot.Common.Entities
 {
-    public class Client: TableEntity
+    public class Client : TableEntity
     {
-        public Client(string serverId, string userId, string userName) 
+        public Client(string serverId, string userId, string userName)
             : base(GetPartitionKey(userId), GetRowKey(userId, userName))
         {
             ServerId = serverId;
@@ -13,6 +13,8 @@ namespace TfsBot.Common.Entities
         public Client()
         {
         }
+
+        public string ServerId { get; set; }
 
         public static string GetPartitionKey(string userId)
         {
@@ -23,7 +25,5 @@ namespace TfsBot.Common.Entities
         {
             return $"{userId}:{userName}";
         }
-
-        public string ServerId { get; set; }
     }
 }

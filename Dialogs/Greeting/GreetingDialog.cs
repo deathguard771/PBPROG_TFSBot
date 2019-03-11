@@ -2,12 +2,17 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Dialogs;
+using Microsoft.Bot.Builder.Dialogs.Choices;
 using Microsoft.Bot.Schema;
 using Microsoft.Extensions.Logging;
+using TfsBot.Common.Db;
+using TfsBot.Common.Entities;
 
 namespace Microsoft.BotBuilderSamples
 {
@@ -20,237 +25,264 @@ namespace Microsoft.BotBuilderSamples
     /// </summary>
     public class GreetingDialog : ComponentDialog
     {
-        // User state for greeting dialog
-        private const string GreetingStateProperty = "greetingState";
-        private const string NameValue = "greetingName";
-        private const string CityValue = "greetingCity";
-
         // Prompts names
-        private const string NamePrompt = "namePrompt";
-        private const string CityPrompt = "cityPrompt";
-        private const string SetupServerPrompt = "setupPrompt";
-
-        // Minimum length requirements for city and name
-        private const int NameLengthMinValue = 3;
-        private const int CityLengthMinValue = 5;
+        private const string CreateOrAddPrompt = nameof(CreateOrAddPrompt);
+        private const string PrintOrChangePrompt = nameof(PrintOrChangePrompt);
+        private const string AddExistingPrompt = nameof(AddExistingPrompt);
 
         // Dialog IDs
-        private const string ProfileDialog = "profileDialog";
+        private const string SetupDialog = nameof(SetupDialog);
+        private const string CreateOrAddDialog = nameof(CreateOrAddDialog);
+        private const string PrintOrChangeDialog = nameof(PrintOrChangeDialog);
+
+        private readonly IRepository _repository;
+        private readonly Choice _createChoice;
+        private readonly Choice _addChoice;
+        private readonly IList<Choice> _createOrAddChoices;
+        private readonly Choice _printChoice;
+        private readonly Choice _changeChoice;
+        private readonly IList<Choice> _printOrChangeChoices;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="GreetingDialog"/> class.
         /// </summary>
-        /// <param name="botServices">Connected services used in processing.</param>
-        /// <param name="botState">The <see cref="UserState"/> for storing properties at user-scope.</param>
+        /// <param name="userProfileStateAccessor"><see cref="GreetingStateAccessor"/></param>
         /// <param name="loggerFactory">The <see cref="ILoggerFactory"/> that enables logging and tracing.</param>
-        /// <param name="userProfileStateAccessor"><see cref="UserProfileAccessor"/></param>
-        public GreetingDialog(IStatePropertyAccessor<GreetingState> userProfileStateAccessor, ILoggerFactory loggerFactory)
+        /// <param name="repository">Repository for DB.</param>
+        public GreetingDialog(IStatePropertyAccessor<GreetingState> userProfileStateAccessor, ILoggerFactory loggerFactory, IRepository repository)
             : base(nameof(GreetingDialog))
         {
-            UserProfileAccessor = userProfileStateAccessor ?? throw new ArgumentNullException(nameof(userProfileStateAccessor));
+            _repository = repository;
+            GreetingStateAccessor = userProfileStateAccessor ?? throw new ArgumentNullException(nameof(userProfileStateAccessor));
 
             // Add control flow dialogs
             var waterfallSteps = new WaterfallStep[]
             {
                     InitializeStateStepAsync,
-                    PromptForNameStepAsync,
-                    PromptForCityStepAsync,
-                    DisplayGreetingStateStepAsync,
+                    PromptForSetupStepAsync,
             };
-            AddDialog(new WaterfallDialog(ProfileDialog, waterfallSteps));
-            AddDialog(new TextPrompt(NamePrompt, ValidateName));
-            AddDialog(new TextPrompt(CityPrompt, ValidateCity));
+            AddDialog(new WaterfallDialog(SetupDialog, waterfallSteps));
+
+            waterfallSteps = new WaterfallStep[]
+            {
+                InitializeCreateOrAddStepAsync,
+                CreateOrAddExecutionStepAsync,
+                AddExistingIdStepAsync,
+            };
+
+            AddDialog(new WaterfallDialog(CreateOrAddDialog, waterfallSteps));
+
+            waterfallSteps = new WaterfallStep[]
+            {
+                InitializePrintOrChangeStepAsync,
+                PrintOrChangeExecutionStepAsync,
+            };
+
+            AddDialog(new WaterfallDialog(PrintOrChangeDialog, waterfallSteps));
+
+            AddDialog(new ChoicePrompt(CreateOrAddPrompt)
+            {
+                Style = ListStyle.List,
+            });
+            AddDialog(new ChoicePrompt(PrintOrChangePrompt)
+            {
+                Style = ListStyle.List,
+            });
+
+            AddDialog(new TextPrompt(AddExistingPrompt, ValidateServerId));
+
+            _createChoice = new Choice { Value = "Create", Synonyms = new List<string> { "new" } };
+            _addChoice = new Choice { Value = "Add", Synonyms = new List<string> { "exist", "existing", "my" } };
+
+            _createOrAddChoices = new List<Choice>()
+            {
+                _createChoice, _addChoice,
+            };
+
+            _printChoice = new Choice { Value = "Print", Synonyms = new List<string> { "pechat", "current" } };
+            _changeChoice = new Choice { Value = "Change", Synonyms = new List<string> { "make", "do it" } };
+
+            _printOrChangeChoices = new List<Choice>()
+            {
+                _printChoice, _changeChoice,
+            };
         }
 
-        public IStatePropertyAccessor<GreetingState> UserProfileAccessor { get; }
+        public IStatePropertyAccessor<GreetingState> GreetingStateAccessor { get; }
 
         private async Task<DialogTurnResult> InitializeStateStepAsync(WaterfallStepContext stepContext, CancellationToken cancellationToken)
         {
-            var greetingState = await UserProfileAccessor.GetAsync(stepContext.Context, () => null);
+            var greetingState = await GreetingStateAccessor.GetAsync(stepContext.Context, () => null);
             if (greetingState == null)
             {
                 var greetingStateOpt = stepContext.Options as GreetingState;
                 if (greetingStateOpt != null)
                 {
-                    await UserProfileAccessor.SetAsync(stepContext.Context, greetingStateOpt);
+                    await GreetingStateAccessor.SetAsync(stepContext.Context, greetingStateOpt);
                 }
                 else
                 {
-                    await UserProfileAccessor.SetAsync(stepContext.Context, new GreetingState());
+                    await GreetingStateAccessor.SetAsync(stepContext.Context, new GreetingState());
                 }
+            }
+
+            if (string.IsNullOrWhiteSpace(greetingState.MainServerID))
+            {
+                var client = await _repository.GetClientAsync(stepContext.Context.Activity.Conversation.Id, stepContext.Context.Activity.Conversation.Name);
+                greetingState.MainServerID = client?.ServerId;
+            }
+
+            if (!string.IsNullOrWhiteSpace(greetingState.MainServerID))
+            {
+                var serverClients = await _repository.GetServerClients(greetingState.MainServerID);
+                greetingState.ServerIDCollection = serverClients.Select(x => x.UserId).ToArray();
             }
 
             return await stepContext.NextAsync();
         }
 
-        private async Task<DialogTurnResult> PromptForNameStepAsync(
-                                                WaterfallStepContext stepContext,
-                                                CancellationToken cancellationToken)
+        private async Task<DialogTurnResult> InitializeCreateOrAddStepAsync(WaterfallStepContext stepContext, CancellationToken cancellationToken)
         {
-            var greetingState = await UserProfileAccessor.GetAsync(stepContext.Context);
+            return await stepContext.PromptAsync(CreateOrAddPrompt, new PromptOptions() { Choices = _createOrAddChoices });
+        }
 
-            // if we have everything we need, greet user and return.
-            if (greetingState != null && !string.IsNullOrWhiteSpace(greetingState.Name) && !string.IsNullOrWhiteSpace(greetingState.City))
+        private async Task<DialogTurnResult> CreateOrAddExecutionStepAsync(WaterfallStepContext stepContext, CancellationToken cancellationToken)
+        {
+            if (!(stepContext.Result is FoundChoice choice))
             {
-                return await GreetUser(stepContext);
+                await stepContext.Context.SendActivityAsync("Can't parse result of create or add prompt.");
+                return await stepContext.ReplaceDialogAsync(SetupDialog);
             }
 
-            if (string.IsNullOrWhiteSpace(greetingState.Name))
+            if (choice.Value == _createChoice.Value)
             {
-                // prompt for name, if missing
-                var opts = new PromptOptions
+                var greetingState = await GreetingStateAccessor.GetAsync(stepContext.Context);
+                await SetServerIdAsync(stepContext.Context);
+                await stepContext.Context.SendActivityAsync($"Created server ID = {greetingState.MainServerID}");
+                return await stepContext.EndDialogAsync();
+            }
+            else
+            {
+                return await stepContext.PromptAsync(AddExistingPrompt, new PromptOptions
                 {
-                    Prompt = new Activity
-                    {
-                        Type = ActivityTypes.Message,
-                        Text = "What is your fucking name?",
-                    },
-                };
-                return await stepContext.PromptAsync(NamePrompt, opts);
-            }
-            else
-            {
-                return await stepContext.NextAsync();
+                    Prompt = MessageFactory.Text("Send me server id, please."),
+                });
             }
         }
 
-        private async Task<DialogTurnResult> PromptForCityStepAsync(
-                                                        WaterfallStepContext stepContext,
-                                                        CancellationToken cancellationToken)
+        private async Task<DialogTurnResult> AddExistingIdStepAsync(WaterfallStepContext stepContext, CancellationToken cancellationToken)
         {
-            // Save name, if prompted.
-            var greetingState = await UserProfileAccessor.GetAsync(stepContext.Context);
-            var lowerCaseName = stepContext.Result as string;
-            if (string.IsNullOrWhiteSpace(greetingState.Name) && lowerCaseName != null)
-            {
-                // Capitalize and set name.
-                greetingState.Name = char.ToUpper(lowerCaseName[0]) + lowerCaseName.Substring(1);
-                await UserProfileAccessor.SetAsync(stepContext.Context, greetingState);
-            }
+            var mainID = stepContext.Result as string;
+            var greetingState = await GreetingStateAccessor.GetAsync(stepContext.Context);
+            greetingState.MainServerID = mainID;
 
-            if (string.IsNullOrWhiteSpace(greetingState.City))
-            {
-                var opts = new PromptOptions
-                {
-                    Prompt = new Activity
-                    {
-                        Type = ActivityTypes.Message,
-                        Text = $"Hello {greetingState.Name}, what city do you live in?",
-                    },
-                };
-                return await stepContext.PromptAsync(CityPrompt, opts);
-            }
-            else
-            {
-                return await stepContext.NextAsync();
-            }
-        }
+            await SetServerIdAsync(stepContext.Context, mainID);
+            await stepContext.Context.SendActivityAsync($"Id {greetingState.MainServerID} successfull set");
 
-        private async Task<DialogTurnResult> DisplayGreetingStateStepAsync(
-                                                    WaterfallStepContext stepContext,
-                                                    CancellationToken cancellationToken)
-        {
-            // Save city, if prompted.
-            var greetingState = await UserProfileAccessor.GetAsync(stepContext.Context);
-
-            var lowerCaseCity = stepContext.Result as string;
-            if (string.IsNullOrWhiteSpace(greetingState.City) &&
-                !string.IsNullOrWhiteSpace(lowerCaseCity))
-            {
-                // capitalize and set city
-                greetingState.City = char.ToUpper(lowerCaseCity[0]) + lowerCaseCity.Substring(1);
-                await UserProfileAccessor.SetAsync(stepContext.Context, greetingState);
-            }
-
-            return await GreetUser(stepContext);
-        }
-
-        private async Task<DialogTurnResult> PromptForSetupServerStepAsync(
-                                                WaterfallStepContext stepContext,
-                                                CancellationToken cancellationToken)
-        {
-            var greetingState = await UserProfileAccessor.GetAsync(stepContext.Context);
-
-            // if we have everything we need, greet user and return.
-            if (greetingState != null && !string.IsNullOrWhiteSpace(greetingState.Name) && !string.IsNullOrWhiteSpace(greetingState.City))
-            {
-                return await GreetUser(stepContext);
-            }
-
-            if (string.IsNullOrWhiteSpace(greetingState.Name))
-            {
-                // prompt for name, if missing
-                var opts = new PromptOptions
-                {
-                    Prompt = new Activity
-                    {
-                        Type = ActivityTypes.Message,
-                        Text = "What is your fucking name?",
-                    },
-                };
-                return await stepContext.PromptAsync(NamePrompt, opts);
-            }
-            else
-            {
-                return await stepContext.NextAsync();
-            }
-        }
-
-        /// <summary>
-        /// Validator function to verify if the user name meets required constraints.
-        /// </summary>
-        /// <param name="promptContext">Context for this prompt.</param>
-        /// <param name="cancellationToken">A <see cref="CancellationToken"/> that can be used by other objects
-        /// or threads to receive notice of cancellation.</param>
-        /// <returns>A <see cref="Task"/> that represents the work queued to execute.</returns>
-        private async Task<bool> ValidateName(PromptValidatorContext<string> promptContext, CancellationToken cancellationToken)
-        {
-            // Validate that the user entered a minimum length for their name.
-            var value = promptContext.Recognized.Value?.Trim() ?? string.Empty;
-            if (value.Length >= NameLengthMinValue)
-            {
-                promptContext.Recognized.Value = value;
-                return true;
-            }
-            else
-            {
-                await promptContext.Context.SendActivityAsync($"Names needs to be at least `{NameLengthMinValue}` characters long.");
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Validator function to verify if city meets required constraints.
-        /// </summary>
-        /// <param name="promptContext">Context for this prompt.</param>
-        /// <param name="cancellationToken">A <see cref="CancellationToken"/> that can be used by other objects
-        /// or threads to receive notice of cancellation.</param>
-        /// <returns>A <see cref="Task"/> that represents the work queued to execute.</returns>
-        private async Task<bool> ValidateCity(PromptValidatorContext<string> promptContext, CancellationToken cancellationToken)
-        {
-            // Validate that the user entered a minimum lenght for their name
-            var value = promptContext.Recognized.Value?.Trim() ?? string.Empty;
-            if (value.Length >= CityLengthMinValue)
-            {
-                promptContext.Recognized.Value = value;
-                return true;
-            }
-            else
-            {
-                await promptContext.Context.SendActivityAsync($"City names needs to be at least `{CityLengthMinValue}` characters long.");
-                return false;
-            }
-        }
-
-        // Helper function to greet user with information in GreetingState.
-        private async Task<DialogTurnResult> GreetUser(WaterfallStepContext stepContext)
-        {
-            var context = stepContext.Context;
-            var greetingState = await UserProfileAccessor.GetAsync(context);
-
-            // Display their profile information and end dialog.
-            await context.SendActivityAsync($"Hi {greetingState.Name}, from {greetingState.City}, nice to meet you!");
             return await stepContext.EndDialogAsync();
+        }
+
+        private async Task<DialogTurnResult> InitializePrintOrChangeStepAsync(WaterfallStepContext stepContext, CancellationToken cancellationToken)
+        {
+            return await stepContext.PromptAsync(PrintOrChangePrompt, new PromptOptions() { Choices = _printOrChangeChoices, RetryPrompt = MessageFactory.Text("Try again, ok?") });
+        }
+
+        private async Task<DialogTurnResult> PrintOrChangeExecutionStepAsync(WaterfallStepContext stepContext, CancellationToken cancellationToken)
+        {
+            if (!(stepContext.Result is FoundChoice choice))
+            {
+                await stepContext.Context.SendActivityAsync("Can't parse result of print or change prompt.");
+                return await stepContext.ReplaceDialogAsync(SetupDialog);
+            }
+
+            if (choice.Value == _printChoice.Value)
+            {
+                var greetingState = await GreetingStateAccessor.GetAsync(stepContext.Context);
+                await stepContext.Context.SendActivityAsync($"Current server ID = {greetingState.MainServerID}");
+                return await stepContext.EndDialogAsync();
+            }
+            else
+            {
+                return await stepContext.ReplaceDialogAsync(CreateOrAddDialog);
+            }
+        }
+
+        private async Task<DialogTurnResult> PromptForSetupStepAsync(WaterfallStepContext stepContext, CancellationToken cancellationToken)
+        {
+            var greetingState = await GreetingStateAccessor.GetAsync(stepContext.Context, () => null);
+
+            // if we have everything we need, greet user and return.
+            if (greetingState != null)
+            {
+                if (!string.IsNullOrWhiteSpace(greetingState.MainServerID))
+                {
+                    return await HaveMainIdStep(stepContext);
+                }
+                else
+                {
+                    return await DontHaveMainIdStep(stepContext);
+                }
+            }
+
+            await stepContext.Context.SendActivityAsync("Sorry, i can't get state of our conversation");
+            return await stepContext.EndDialogAsync();
+        }
+
+        private async Task<DialogTurnResult> HaveMainIdStep(WaterfallStepContext stepContext)
+        {
+            return await stepContext.ReplaceDialogAsync(PrintOrChangeDialog);
+        }
+
+        private async Task<DialogTurnResult> DontHaveMainIdStep(WaterfallStepContext stepContext)
+        {
+            return await stepContext.ReplaceDialogAsync(CreateOrAddDialog);
+        }
+
+        private async Task<bool> ValidateServerId(PromptValidatorContext<string> promptContext, CancellationToken cancellationToken)
+        {
+            var value = promptContext.Recognized.Value?.Trim() ?? string.Empty;
+
+            var clients = await _repository.GetServerClients(value);
+
+            if (!clients.Any())
+            {
+                await promptContext.Context.SendActivityAsync("Seems like I don't know this ID. Sorry, I can't use it. Maybe next time, dude. Send another guid.");
+            }
+            else
+            {
+                promptContext.Recognized.Value = value;
+            }
+
+            return clients.Any();
+        }
+
+        /// <summary>
+        /// Set server id for this conversation.
+        /// </summary>
+        /// <param name="context">Context of conversation.</param>
+        private async Task SetServerIdAsync(ITurnContext context, string id = null)
+        {
+            var activity = context.Activity;
+
+            var serverParams = id == null? ServerParams.New("pcpo") : new ServerParams() { Id = id };
+
+            var serverClient = new ServerClient(serverParams.Id, activity.Conversation.Id)
+            {
+                UserName = activity.Conversation.Name,
+                BotServiceUrl = activity.ServiceUrl,
+                BotId = activity.Recipient.Id,
+                BotName = activity.Recipient.Name,
+                ReplaceFrom = serverParams.ReplaceFrom,
+                ReplaceTo = serverParams.ReplaceTo,
+                ConversationId = activity.Conversation.Id,
+                ChannelId = activity.ChannelId,
+            };
+            await _repository.SaveServiceClient(serverClient);
+            var client = new Client(serverParams.Id, activity.Conversation.Id, activity.Conversation.Name);
+            await _repository.SaveClient(client);
+
+            var state = await GreetingStateAccessor.GetAsync(context);
+            state.MainServerID = serverParams.Id;
         }
     }
 }

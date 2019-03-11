@@ -76,7 +76,7 @@ namespace Microsoft.BotBuilderSamples
 
             Dialogs = new DialogSet(_dialogStateAccessor);
             Dialogs.Add(new SetupDialog(_setupStateAccessor, loggerFactory, _repository));
-            Dialogs.Add(new GreetingDialog(_greetingStateAccessor, loggerFactory));
+            Dialogs.Add(new GreetingDialog(_greetingStateAccessor, loggerFactory, _repository));
 
             //Dialogs.Add(new TeamFoundationServerMonolog(_greetingStateAccessor, loggerFactory));
         }
@@ -99,75 +99,55 @@ namespace Microsoft.BotBuilderSamples
             if (activity.Type == ActivityTypes.Message)
             {
                 // Perform a call to LUIS to retrieve results for the current activity message.
-                //var luisResults = await _services.LuisServices[LuisConfiguration].RecognizeAsync(dc.Context, cancellationToken);
+                var luisResults = await _services.LuisServices[LuisConfiguration].RecognizeAsync(dc.Context, cancellationToken);
 
-                //// If any entities were updated, treat as interruption.
-                //// For example, "no my name is tony" will manifest as an update of the name to be "tony".
-                //var topScoringIntent = luisResults?.GetTopScoringIntent();
+                // If any entities were updated, treat as interruption.
+                // For example, "no my name is tony" will manifest as an update of the name to be "tony".
+                var topScoringIntent = luisResults?.GetTopScoringIntent();
 
-                //var topIntent = topScoringIntent.Value.intent;
+                var topIntent = topScoringIntent.Value.intent;
 
-                //// update greeting state with any entities captured
-                //await UpdateGreetingState(luisResults, dc.Context);
+                // update greeting state with any entities captured
+                await UpdateGreetingState(luisResults, dc.Context);
 
-                //// Handle conversation interrupts first.
-                //var interrupted = await IsTurnInterruptedAsync(dc, topIntent);
-                //if (interrupted)
-                //{
-                //    // Bypass the dialog.
-                //    // Save state before the next turn.
-                //    await _conversationState.SaveChangesAsync(turnContext);
-                //    await _userState.SaveChangesAsync(turnContext);
-                //    return;
-                //}
+                // Handle conversation interrupts first.
+                var interrupted = await IsTurnInterruptedAsync(dc, topIntent);
+                if (interrupted)
+                {
+                    // Bypass the dialog.
+                    // Save state before the next turn.
+                    await _conversationState.SaveChangesAsync(turnContext);
+                    await _userState.SaveChangesAsync(turnContext);
+                    return;
+                }
 
                 // Continue the current dialog
-                DialogTurnResult dialogResult = null;
-                try
-                {
-                    System.Diagnostics.Trace.TraceInformation("Try to continue dialog");
-                    dialogResult = await dc.ContinueDialogAsync();
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Trace.TraceError("Exception occurred when continue dialog. {0}. {1}", ex.Message, ex.StackTrace);
-                    throw;
-                }
+                var dialogResult = await dc.ContinueDialogAsync();
 
                 // if no one has responded,
                 if (!dc.Context.Responded)
                 {
-                    System.Diagnostics.Trace.TraceInformation("Continue dialog result = {0}", dialogResult.Status);
                     // examine results from active dialog
                     switch (dialogResult.Status)
                     {
                         case DialogTurnStatus.Empty:
-                            //switch (topIntent)
-                            //{
-                            //    case GreetingIntent:
-                            //        await dc.BeginDialogAsync(nameof(GreetingDialog));
-                            //        break;
+                            switch (topIntent)
+                            {
+                                case GreetingIntent:
+                                    await dc.BeginDialogAsync(nameof(GreetingDialog));
+                                    break;
 
-                            //    case NoneIntent:
-                            //    default:
-                            //        // Help or no intent identified, either way, let's provide some help.
-                            //        // to the user
-                            //        await dc.Context.SendActivityAsync($"I didn't understand what you just said to me.");
-                            //        break;
-                            //}
-                            System.Diagnostics.Trace.TraceInformation("Try to continue dialog");
-                            try
-                            {
-                                System.Diagnostics.Trace.TraceInformation("Try to begin Setup dialog");
-                                var result = await dc.BeginDialogAsync(nameof(SetupDialog), cancellationToken: cancellationToken);
-                                System.Diagnostics.Trace.TraceInformation("Begin dialog result = {0}", result.Status);
-                                break;
+                                case NoneIntent:
+                                default:
+                                    // Help or no intent identified, either way, let's provide some help.
+                                    // to the user
+                                    await dc.Context.SendActivityAsync($"I didn't understand what you just said to me.");
+                                    break;
                             }
-                            catch (Exception ex)
-                            {
-                                System.Diagnostics.Trace.TraceError("Exception occurred when start Setup dialog. {0}. {1}", ex.Message, ex.StackTrace);
-                                throw;
-                            }
+
+                            //var result = await dc.BeginDialogAsync(nameof(SetupDialog), cancellationToken: cancellationToken);
+
+                            break;
 
                         case DialogTurnStatus.Waiting:
                             // The active dialog is waiting for a response from the user, so do nothing.
@@ -268,44 +248,48 @@ namespace Microsoft.BotBuilderSamples
         /// <returns>A task that represents the work queued to execute.</returns>
         private async Task UpdateGreetingState(RecognizerResult luisResult, ITurnContext turnContext)
         {
-            if (luisResult.Entities != null && luisResult.Entities.HasValues)
+            //ѕока что нечего обновл€ть таким способом 
+
+            if (luisResult.Entities == null || !luisResult.Entities.HasValues)
             {
-                // Get latest GreetingState
-                var greetingState = await _greetingStateAccessor.GetAsync(turnContext, () => new GreetingState());
-                var entities = luisResult.Entities;
-
-                // Supported LUIS Entities
-                string[] userNameEntities = { "userName", "userName_patternAny" };
-                string[] userLocationEntities = { "userLocation", "userLocation_patternAny" };
-
-                // Update any entities
-                // Note: Consider a confirm dialog, instead of just updating.
-                foreach (var name in userNameEntities)
-                {
-                    // Check if we found valid slot values in entities returned from LUIS.
-                    if (entities[name] != null)
-                    {
-                        // Capitalize and set new user name.
-                        var newName = (string)entities[name][0];
-                        greetingState.Name = char.ToUpper(newName[0]) + newName.Substring(1);
-                        break;
-                    }
-                }
-
-                foreach (var city in userLocationEntities)
-                {
-                    if (entities[city] != null)
-                    {
-                        // Capitalize and set new city.
-                        var newCity = (string)entities[city][0];
-                        greetingState.City = char.ToUpper(newCity[0]) + newCity.Substring(1);
-                        break;
-                    }
-                }
-
-                // Set the new values into state.
-                await _greetingStateAccessor.SetAsync(turnContext, greetingState);
+                return;
             }
+
+            // Get latest GreetingState
+            var greetingState = await _greetingStateAccessor.GetAsync(turnContext, () => new GreetingState());
+            //var entities = luisResult.Entities;
+
+            //// Supported LUIS Entities
+            //string[] userNameEntities = { "userName", "userName_patternAny" };
+            //string[] userLocationEntities = { "userLocation", "userLocation_patternAny" };
+
+            //// Update any entities
+            //// Note: Consider a confirm dialog, instead of just updating.
+            //foreach (var name in userNameEntities)
+            //{
+            //    // Check if we found valid slot values in entities returned from LUIS.
+            //    if (entities[name] != null)
+            //    {
+            //        // Capitalize and set new user name.
+            //        var newName = (string)entities[name][0];
+            //        greetingState.Name = char.ToUpper(newName[0]) + newName.Substring(1);
+            //        break;
+            //    }
+            //}
+
+            //foreach (var city in userLocationEntities)
+            //{
+            //    if (entities[city] != null)
+            //    {
+            //        // Capitalize and set new city.
+            //        var newCity = (string)entities[city][0];
+            //        greetingState.City = char.ToUpper(newCity[0]) + newCity.Substring(1);
+            //        break;
+            //    }
+            //}
+
+            // Set the new values into state.
+            await _greetingStateAccessor.SetAsync(turnContext, greetingState);
         }
     }
 }
