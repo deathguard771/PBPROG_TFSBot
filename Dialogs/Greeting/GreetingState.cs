@@ -8,6 +8,10 @@ namespace Microsoft.BotBuilderSamples
     /// </summary>
     public class GreetingState
     {
+        public string[] ServerIDCollection { get; set; }
+
+        public string MainServerID { get; set; }
+
         public string Name { get; set; }
 
         public string City { get; set; }
