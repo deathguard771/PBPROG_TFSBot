@@ -39,30 +39,40 @@ namespace BasicBot.Controllers
 
         private IEnumerable<string> GetPushMessage(PushRequest req)
         {
-            yield return $"*PUSH* by {req.UserName}";
+            yield return $"**PUSHED by {req.UserName}**";
 
             yield return Environment.NewLine;
 
             foreach (var commit in req.Commits)
             {
-                yield return $"*Commit* {commit.ID.Substring(0, 8)} by {commit.Author.Name}:";
+                yield return $"**Commit {commit.ID.Substring(0, 8)}** (author {commit.Author.Name}):";
 
-                yield return $"_Added_";
-                foreach (var add in commit.Added)
+                if (commit.Added.Any())
                 {
-                    yield return $"{{code}}{add}{{code}}";
+                    yield return $"_Added_";
+                    foreach (var add in commit.Added)
+                    {
+                        yield return $"{{code}}{add}{{code}}";
+                    }
                 }
 
-                yield return $"_Modified_";
-                foreach (var mod in commit.Modified)
+
+                if (commit.Modified.Any())
                 {
-                    yield return $"{{code}}{mod}{{code}}";
+                    yield return $"_Modified_";
+                    foreach (var mod in commit.Modified)
+                    {
+                        yield return $"{{code}}{mod}{{code}}";
+                    }
                 }
 
-                yield return $"_Removed_";
-                foreach (var rem in commit.Removed)
+                if (commit.Removed.Any())
                 {
-                    yield return $"{{code}}{rem}{{code}}";
+                    yield return $"_Removed_";
+                    foreach (var rem in commit.Removed)
+                    {
+                        yield return $"{{code}}{rem}{{code}}";
+                    }
                 }
 
                 yield return commit.Message;
