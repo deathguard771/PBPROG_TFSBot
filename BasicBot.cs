@@ -122,11 +122,22 @@ namespace Microsoft.BotBuilderSamples
                 //}
 
                 // Continue the current dialog
-                var dialogResult = await dc.ContinueDialogAsync();
+                DialogTurnResult dialogResult = null;
+                try
+                {
+                    System.Diagnostics.Trace.TraceInformation("Try to continue dialog");
+                    dialogResult = await dc.ContinueDialogAsync();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Trace.TraceError("Exception occurred when continue dialog. {0}. {1}", ex.Message, ex.StackTrace);
+                    throw;
+                }
 
                 // if no one has responded,
                 if (!dc.Context.Responded)
                 {
+                    System.Diagnostics.Trace.TraceInformation("Continue dialog result = {0}", dialogResult.Status);
                     // examine results from active dialog
                     switch (dialogResult.Status)
                     {
@@ -144,10 +155,19 @@ namespace Microsoft.BotBuilderSamples
                             //        await dc.Context.SendActivityAsync($"I didn't understand what you just said to me.");
                             //        break;
                             //}
-
-                            var result = await dc.BeginDialogAsync(nameof(SetupDialog), cancellationToken: cancellationToken);
-
-                            break;
+                            System.Diagnostics.Trace.TraceInformation("Try to continue dialog");
+                            try
+                            {
+                                System.Diagnostics.Trace.TraceInformation("Try to begin Setup dialog");
+                                var result = await dc.BeginDialogAsync(nameof(SetupDialog), cancellationToken: cancellationToken);
+                                System.Diagnostics.Trace.TraceInformation("Begin dialog result = {0}", result.Status);
+                                break;
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Trace.TraceError("Exception occurred when start Setup dialog. {0}. {1}", ex.Message, ex.StackTrace);
+                                throw;
+                            }
 
                         case DialogTurnStatus.Waiting:
                             // The active dialog is waiting for a response from the user, so do nothing.
