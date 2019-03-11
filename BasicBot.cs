@@ -11,6 +11,7 @@ using BasicBot.Dialogs.Setup;
 using BasicBot.Infrastructure;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Dialogs;
+using Microsoft.Bot.Configuration;
 using Microsoft.Bot.Schema;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -55,7 +56,7 @@ namespace Microsoft.BotBuilderSamples
         /// <param name="loggerFactory">Logging.</param>
         /// <param name="dialogsRepository">Repository for save activity.</param>
         /// <param name="repository">Repository for keeping conversation to server relationsheep.</param>
-        public BasicBot(BotServices services, UserState userState, ConversationState conversationState, ILoggerFactory loggerFactory, IDialogsRepository dialogsRepository, IRepository repository)
+        public BasicBot(BotServices services, UserState userState, ConversationState conversationState, ILoggerFactory loggerFactory, IDialogsRepository dialogsRepository, IRepository repository, BotConfiguration botConfiguration)
         {
             _services = services ?? throw new ArgumentNullException(nameof(services));
             _userState = userState ?? throw new ArgumentNullException(nameof(userState));
@@ -76,7 +77,7 @@ namespace Microsoft.BotBuilderSamples
 
             Dialogs = new DialogSet(_dialogStateAccessor);
             Dialogs.Add(new SetupDialog(_setupStateAccessor, loggerFactory, _repository));
-            Dialogs.Add(new GreetingDialog(_greetingStateAccessor, loggerFactory, _repository));
+            Dialogs.Add(new GreetingDialog(_greetingStateAccessor, loggerFactory, _repository, botConfiguration));
 
             //Dialogs.Add(new TeamFoundationServerMonolog(_greetingStateAccessor, loggerFactory));
         }
@@ -98,6 +99,12 @@ namespace Microsoft.BotBuilderSamples
 
             if (activity.Type == ActivityTypes.Message)
             {
+                var name = activity.Recipient.Name.Replace(" ", "_");
+                if (activity.Text.StartsWith($"{name} "))
+                {
+                    activity.Text = activity.Text.Replace($"{name}", string.Empty).Trim();
+                }
+
                 // Perform a call to LUIS to retrieve results for the current activity message.
                 var luisResults = await _services.LuisServices[LuisConfiguration].RecognizeAsync(dc.Context, cancellationToken);
 

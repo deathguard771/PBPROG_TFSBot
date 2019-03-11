@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Bot.Builder.Dialogs.Choices;
+using Microsoft.Bot.Configuration;
 using Microsoft.Bot.Schema;
 using Microsoft.Extensions.Logging;
 using TfsBot.Common.Db;
@@ -36,6 +37,7 @@ namespace Microsoft.BotBuilderSamples
         private const string PrintOrChangeDialog = nameof(PrintOrChangeDialog);
 
         private readonly IRepository _repository;
+        private readonly BotConfiguration _botConfiguration;
         private readonly Choice _createChoice;
         private readonly Choice _addChoice;
         private readonly IList<Choice> _createOrAddChoices;
@@ -49,10 +51,11 @@ namespace Microsoft.BotBuilderSamples
         /// <param name="userProfileStateAccessor"><see cref="GreetingStateAccessor"/></param>
         /// <param name="loggerFactory">The <see cref="ILoggerFactory"/> that enables logging and tracing.</param>
         /// <param name="repository">Repository for DB.</param>
-        public GreetingDialog(IStatePropertyAccessor<GreetingState> userProfileStateAccessor, ILoggerFactory loggerFactory, IRepository repository)
+        public GreetingDialog(IStatePropertyAccessor<GreetingState> userProfileStateAccessor, ILoggerFactory loggerFactory, IRepository repository, BotConfiguration botConfiguration)
             : base(nameof(GreetingDialog))
         {
             _repository = repository;
+            _botConfiguration = botConfiguration;
             GreetingStateAccessor = userProfileStateAccessor ?? throw new ArgumentNullException(nameof(userProfileStateAccessor));
 
             // Add control flow dialogs
@@ -143,7 +146,7 @@ namespace Microsoft.BotBuilderSamples
 
         private async Task<DialogTurnResult> InitializeCreateOrAddStepAsync(WaterfallStepContext stepContext, CancellationToken cancellationToken)
         {
-            return await stepContext.PromptAsync(CreateOrAddPrompt, new PromptOptions() { Choices = _createOrAddChoices });
+            return await stepContext.PromptAsync(CreateOrAddPrompt, new PromptOptions() { Prompt = MessageFactory.Text("You don't have server ID. What would you like to do?"), Choices = _createOrAddChoices, RetryPrompt = MessageFactory.Text("Common, just choose one of them. Don't joke with me.") });
         }
 
         private async Task<DialogTurnResult> CreateOrAddExecutionStepAsync(WaterfallStepContext stepContext, CancellationToken cancellationToken)
@@ -177,14 +180,14 @@ namespace Microsoft.BotBuilderSamples
             greetingState.MainServerID = mainID;
 
             await SetServerIdAsync(stepContext.Context, mainID);
-            await stepContext.Context.SendActivityAsync($"Id {greetingState.MainServerID} successfull set");
+            await stepContext.Context.SendActivityAsync($"Id {greetingState.MainServerID} successful set");
 
             return await stepContext.EndDialogAsync();
         }
 
         private async Task<DialogTurnResult> InitializePrintOrChangeStepAsync(WaterfallStepContext stepContext, CancellationToken cancellationToken)
         {
-            return await stepContext.PromptAsync(PrintOrChangePrompt, new PromptOptions() { Choices = _printOrChangeChoices, RetryPrompt = MessageFactory.Text("Try again, ok?") });
+            return await stepContext.PromptAsync(PrintOrChangePrompt, new PromptOptions() { Prompt = MessageFactory.Text("You have server ID. What would you like to do?"), Choices = _printOrChangeChoices, RetryPrompt = MessageFactory.Text("Try again, OK?") });
         }
 
         private async Task<DialogTurnResult> PrintOrChangeExecutionStepAsync(WaterfallStepContext stepContext, CancellationToken cancellationToken)
@@ -198,7 +201,24 @@ namespace Microsoft.BotBuilderSamples
             if (choice.Value == _printChoice.Value)
             {
                 var greetingState = await GreetingStateAccessor.GetAsync(stepContext.Context);
-                await stepContext.Context.SendActivityAsync($"Current server ID = {greetingState.MainServerID}");
+                string[] urls;
+                if (_botConfiguration.Services.FirstOrDefault(x => typeof(EndpointService).Equals(x.GetType()) && x.Name.Equals("production")) is EndpointService endpointService)
+                {
+                    var url = endpointService.Endpoint?.Replace("/api/messages", string.Empty);
+                    urls = new[]
+                    {
+                        "*URLs:*",
+                        $"[TFS Checked In]({url}/tfs/commit/{greetingState.MainServerID})",
+                        $"[TFS Check clients]({url}/tfs/setup/{greetingState.MainServerID})",
+                        $"[GitLab Push]({url}/gitlab/push/{greetingState.MainServerID})",
+                    };
+                }
+                else
+                {
+                    urls = new string[0];
+                }
+
+                await stepContext.Context.SendActivityAsync($"Current server ID = {greetingState.MainServerID}{Environment.NewLine}{string.Join(Environment.NewLine, urls)}");
                 return await stepContext.EndDialogAsync();
             }
             else
@@ -246,7 +266,9 @@ namespace Microsoft.BotBuilderSamples
 
             if (!clients.Any())
             {
-                await promptContext.Context.SendActivityAsync("Seems like I don't know this ID. Sorry, I can't use it. Maybe next time, dude. Send another guid.");
+                await promptContext.Context.SendActivityAsync($"Seems like I don't know this ID ({value}). Sorry, I can't use it. Maybe next time, dude. Send another guid.");
+                var recipient = promptContext.Context.Activity.Recipient;
+                await promptContext.Context.SendActivityAsync($"");
             }
             else
             {
