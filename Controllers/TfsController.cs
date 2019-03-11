@@ -53,10 +53,10 @@ namespace BasicBot.Controllers
 
         private static IEnumerable<string> GetCodeCheckedInMessage(CodeCheckedInRequest req)
         {
-            var baseMessage = $"**COMMIT {req.Resource.ChangesetId}** {req.DetailedMessage.Markdown} ([link]({req.Resource.Url})){Environment.NewLine}";
+            var baseMessage = $"**COMMIT {req.Resource.ChangesetId}** {req.DetailedMessage.Markdown} ([link]({req.Resource.Url}))";
 
             var itemsMessage = req.Resource.WorkItems?.Any() == true
-                ? Environment.NewLine + string.Join(Environment.NewLine, req.Resource.WorkItems.Select(x => $"{x.Id} - {x.Title}"))
+                ? Environment.NewLine + string.Join(Environment.NewLine, req.Resource.WorkItems.Select(x => $"[{x.Id}]({x.WebUrl}) - {x.Title}"))
                 : string.Empty;
 
             yield return baseMessage + itemsMessage;
