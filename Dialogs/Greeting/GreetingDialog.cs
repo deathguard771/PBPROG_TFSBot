@@ -118,8 +118,7 @@ namespace Microsoft.BotBuilderSamples
             var greetingState = await GreetingStateAccessor.GetAsync(stepContext.Context, () => null);
             if (greetingState == null)
             {
-                var greetingStateOpt = stepContext.Options as GreetingState;
-                if (greetingStateOpt != null)
+                if (stepContext.Options is GreetingState greetingStateOpt)
                 {
                     await GreetingStateAccessor.SetAsync(stepContext.Context, greetingStateOpt);
                 }
@@ -129,11 +128,8 @@ namespace Microsoft.BotBuilderSamples
                 }
             }
 
-            if (string.IsNullOrWhiteSpace(greetingState.MainServerID))
-            {
-                var client = await _repository.GetClientAsync(stepContext.Context.Activity.Conversation.Id, stepContext.Context.Activity.Conversation.Name);
-                greetingState.MainServerID = client?.ServerId;
-            }
+            var client = await _repository.GetClientAsync(stepContext.Context.Activity.Conversation.Id, stepContext.Context.Activity.Conversation.Name);
+            greetingState.MainServerID = client?.ServerId;
 
             if (!string.IsNullOrWhiteSpace(stepContext?.Context?.Activity?.Conversation?.Id))
             {
@@ -211,7 +207,7 @@ namespace Microsoft.BotBuilderSamples
                         $"[TFS Checked In]({url}/tfs/commit/{greetingState.MainServerID})",
                         $"[TFS Check clients]({url}/tfs/setup/{greetingState.MainServerID})",
                         $"[GitLab Push]({url}/gitlab/push/{greetingState.MainServerID})",
-                        string.Join("; ", greetingState.ServerIDCollection),
+                        $"GUIDs for this chat: {string.Join("; ", greetingState.ServerIDCollection)}",
                     };
                 }
                 else
