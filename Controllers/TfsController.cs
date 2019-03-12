@@ -18,6 +18,7 @@ namespace BasicBot.Controllers
 {
     public class TfsController : ControllerBase
     {
+        private const string BotFirstLineHeaderKey = "BotFirstLine";
         private IRepository _repository;
         private SkypeHelper _skypeHelper;
 
@@ -51,9 +52,20 @@ namespace BasicBot.Controllers
             return Ok();
         }
 
-        private static IEnumerable<string> GetCodeCheckedInMessage(CodeCheckedInRequest req)
+        private IEnumerable<string> GetCodeCheckedInMessage(CodeCheckedInRequest req)
         {
-            var baseMessage = $"**COMMIT {req.Resource.ChangesetId}** {req.DetailedMessage.Markdown} ([link]({req.Resource.Url}))";
+            var firstLine = string.Empty;
+            if (ControllerContext.HttpContext.Request.Headers.TryGetValue(BotFirstLineHeaderKey, out var value))
+            {
+                firstLine = value.FirstOrDefault();
+            }
+
+            if (!string.IsNullOrWhiteSpace(firstLine))
+            {
+                firstLine = $"{firstLine.TrimEnd()}{Environment.NewLine}";
+            }
+
+            var baseMessage = $"{firstLine}**COMMIT {req.Resource.ChangesetId}** {req.DetailedMessage.TrimmedMarkdown}";
 
             var itemsMessage = req.Resource.WorkItems?.Any() == true
                 ? Environment.NewLine + string.Join(Environment.NewLine, req.Resource.WorkItems.Select(x => $"[{x.Id}]({x.WebUrl}) - {x.Title}"))
