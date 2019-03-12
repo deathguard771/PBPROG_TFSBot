@@ -36,6 +36,11 @@ namespace TfsBot.Common.Db
                     _clients.FirstOrDefault(i =>
                         i.PartitionKey == Client.GetPartitionKey(userId) &&
                         i.RowKey == Client.GetRowKey(userId, userName)));
-        }       
+        }
+
+        public Task<IEnumerable<string>> GetServersOfClient(string userId)
+        {
+            return Task.FromResult(_serverClients.Where(x => x.ConversationId == userId).Select(x => x.ServiceId));
+        }
     }
 }
