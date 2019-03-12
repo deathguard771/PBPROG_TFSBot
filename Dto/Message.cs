@@ -1,7 +1,7 @@
 ﻿using System;
 using Newtonsoft.Json;
 
-namespace TfsBot.Common.Dtos
+namespace BasicBot.Dto
 {
     public class Message
     {

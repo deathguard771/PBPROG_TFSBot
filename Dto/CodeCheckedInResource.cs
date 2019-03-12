@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using BasicBot.Dto;
 
-namespace TfsBot.Common.Dtos
+namespace BasicBot.Dto
 {
     public class CodeCheckedInResource
     {

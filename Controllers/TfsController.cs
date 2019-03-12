@@ -2,17 +2,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using BasicBot.Dto;
 using BasicBot.Infrastructure;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Bot.Builder;
-using Microsoft.Bot.Configuration;
-using Microsoft.Bot.Connector;
-using Microsoft.Bot.Connector.Authentication;
-using Microsoft.Bot.Schema;
 using TfsBot.Common.Db;
-using TfsBot.Common.Dtos;
-using TfsBot.Common.Entities;
 
 namespace BasicBot.Controllers
 {
@@ -21,6 +14,10 @@ namespace BasicBot.Controllers
         private const string BotFirstLineHeaderKey = "BotFirstLine";
         private IRepository _repository;
         private SkypeHelper _skypeHelper;
+        private string[] _statesToReport = new[]
+        {
+            "Done", "Removed",
+        };
 
         public TfsController(IRepository repository, SkypeHelper skypeHelper)
         {
@@ -42,12 +39,27 @@ namespace BasicBot.Controllers
         public async Task<IActionResult> CodeCheckedIn(string id, [FromBody] CodeCheckedInRequest req)
         {
             var message = GetCodeCheckedInMessage(req);
-            var clients = await _repository.GetServerClients(id);
+            await SendToAllClients(id, message);
 
-            foreach (var client in clients)
+            return Ok();
+        }
+
+        [HttpGet]
+        [HttpPost]
+        [Route("~/tfs/itemupdate/{id}")]
+        public async Task<IActionResult> ItemStateChanged(string id, [FromBody] ItemUpdatedRequest request)
+        {
+            var shouldReturn = request.Resource == null
+                || !request.Resource.Fields.TryGetValue("System.State", out var field)
+                || !(field.NewValue is string newState)
+                || !_statesToReport.Contains(newState);
+
+            if (shouldReturn)
             {
-                await _skypeHelper.SendMessage(client, string.Join(Environment.NewLine, message));
+                return Ok();
             }
+
+            await SendToAllClients(id, $"{request.DetailedMessage.TrimmedMarkdown}");
 
             return Ok();
         }
@@ -72,6 +84,21 @@ namespace BasicBot.Controllers
                 : string.Empty;
 
             yield return baseMessage + itemsMessage;
+        }
+
+        private async Task SendToAllClients(string id, IEnumerable<string> message)
+        {
+            await SendToAllClients(id, string.Join(Environment.NewLine, message));
+        }
+
+        private async Task SendToAllClients(string id, string message)
+        {
+            var clients = await _repository.GetServerClients(id);
+
+            foreach (var client in clients)
+            {
+                await _skypeHelper.SendMessage(client, message);
+            }
         }
     }
 }

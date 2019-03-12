@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace TfsBot.Common.Dtos
+namespace BasicBot.Dto
 {
     public class Request
     {
