@@ -57,6 +57,16 @@ namespace TfsBot.Common.Db
             return (Client)retrievedResult.Result;
         }
 
+        public async Task<IEnumerable<string>> GetServersOfClient(string userId)
+        {
+            var query = new TableQuery<ServerClient>()
+               .Where(TableQuery.GenerateFilterCondition(nameof(ServerClient.RowKey), QueryComparisons.Equal, userId));
+
+            var collection = await _serviceClientsTable.ExecuteQuerySegmentedAsync(query, null);
+
+            return collection.Select(x => x.PartitionKey).ToArray();
+        }
+
         public async Task RemoveServerClientAsync(ServerClient client)
         {
             var deleteOperation = TableOperation.Delete(client);

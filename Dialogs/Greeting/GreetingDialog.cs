@@ -135,10 +135,10 @@ namespace Microsoft.BotBuilderSamples
                 greetingState.MainServerID = client?.ServerId;
             }
 
-            if (!string.IsNullOrWhiteSpace(greetingState.MainServerID))
+            if (!string.IsNullOrWhiteSpace(stepContext?.Context?.Activity?.Conversation?.Id))
             {
-                var serverClients = await _repository.GetServerClients(greetingState.MainServerID);
-                greetingState.ServerIDCollection = serverClients.Select(x => x.UserId).ToArray();
+                var serverClients = await _repository.GetServersOfClient(stepContext.Context.Activity.Conversation.Id);
+                greetingState.ServerIDCollection = serverClients.ToArray();
             }
 
             return await stepContext.NextAsync();
@@ -211,6 +211,7 @@ namespace Microsoft.BotBuilderSamples
                         $"[TFS Checked In]({url}/tfs/commit/{greetingState.MainServerID})",
                         $"[TFS Check clients]({url}/tfs/setup/{greetingState.MainServerID})",
                         $"[GitLab Push]({url}/gitlab/push/{greetingState.MainServerID})",
+                        string.Join("; ", greetingState.ServerIDCollection),
                     };
                 }
                 else

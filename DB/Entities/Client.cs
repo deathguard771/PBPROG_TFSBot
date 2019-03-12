@@ -16,10 +16,7 @@ namespace TfsBot.Common.Entities
 
         public string ServerId { get; set; }
 
-        public static string GetPartitionKey(string userId)
-        {
-            return userId.Substring(0, 1);
-        }
+        public static string GetPartitionKey(string userId) => userId;
 
         public static string GetRowKey(string userId, string userName)
         {
