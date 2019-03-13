@@ -77,10 +77,10 @@ namespace BasicBot.Controllers
                 firstLine = $"{firstLine.TrimEnd()}{Environment.NewLine}";
             }
 
-            var baseMessage = $"{firstLine}**COMMIT {req.Resource.ChangesetId}** {req.DetailedMessage.TrimmedMarkdown}";
+            var baseMessage = $"{firstLine}**COMMIT {req.Resource.ChangesetId}** {req.Resource.Author.DisplayName} вернул {req.Resource.Comment}";
 
             var itemsMessage = req.Resource.WorkItems?.Any() == true
-                ? Environment.NewLine + string.Join(Environment.NewLine, req.Resource.WorkItems.Select(x => $"[{x.Id}]({x.WebUrl}) - {x.Title}"))
+                ? Environment.NewLine + string.Join(Environment.NewLine, req.Resource.WorkItems.Select(x => $"[{x.Id}]({x.WebUrl}) - {x.Title} ({x.State})"))
                 : string.Empty;
 
             yield return baseMessage + itemsMessage;
