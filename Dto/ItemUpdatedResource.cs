@@ -11,5 +11,7 @@ namespace BasicBot.Dto
         public string Rev { get; set; }
 
         public IDictionary<string, ItemField> Fields { get; set; }
+
+        public RelationsCollection Relations { get; set; }
     }
 }

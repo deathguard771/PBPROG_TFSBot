@@ -12,6 +12,6 @@ namespace BasicBot.Dto
         public string Markdown { get; set; }
 
         [JsonIgnore]
-        public string TrimmedMarkdown => Markdown.Replace($"{Environment.NewLine}{Environment.NewLine}", Environment.NewLine);
+        public string TrimmedMarkdown => Markdown?.Replace($"{Environment.NewLine}{Environment.NewLine}", Environment.NewLine)?.TrimEnd();
     }
 }
