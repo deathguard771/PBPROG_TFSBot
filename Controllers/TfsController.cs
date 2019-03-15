@@ -77,7 +77,11 @@ namespace BasicBot.Controllers
                 firstLine = $"{firstLine.TrimEnd()}{Environment.NewLine}";
             }
 
-            var baseMessage = $"{firstLine}**COMMIT {req.Resource.ChangesetId}** {req.Resource.Author.DisplayName} вернул {req.Resource.Comment}";
+            var url = System.Text.RegularExpressions.Regex.Match(req.Message.Markdown, $@"(?<=\[{req.Resource.ChangesetId}\]\()[^)]+").Value;
+
+            var markdown = req?.DetailedMessage?.TrimmedMarkdown?.Replace("checked in changeset", "вернул набор изменений");
+            var comment = string.IsNullOrWhiteSpace(req.Resource.Comment) ? $"Я МОГУ СЕБЕ ПОЗВОЛИТЬ ВОЗВРАЩАТЬ БЕЗ КОММЕНТАРИЕВ, ЯСНО?! © {req.Resource.Author.DisplayName} (poop) (facepalm)" : req.Resource.Comment;
+            var baseMessage = $"{firstLine}**COMMIT [{req.Resource.ChangesetId}]({url})** {req.Resource.Author.DisplayName} вернул набор изменений с комментарием: {comment}";
 
             var itemsMessage = req.Resource.WorkItems?.Any() == true
                 ? Environment.NewLine + string.Join(Environment.NewLine, req.Resource.WorkItems.Select(x => $"[{x.Id}]({x.WebUrl}) - {x.Title} ({x.State})"))
