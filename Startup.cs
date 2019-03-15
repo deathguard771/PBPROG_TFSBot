@@ -5,6 +5,7 @@ using System;
 using System.IO;
 using System.Linq;
 using BasicBot.Infrastructure;
+using BasicBot.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Bot.Builder;
@@ -76,6 +77,7 @@ namespace Microsoft.BotBuilderSamples
 
             System.Diagnostics.Trace.TraceInformation("For repository will be used DB repository");
             services.AddScoped<IRepository, Repository>();
+            services.AddScoped<TFSApiService>();
 
             var secretKey = Configuration.GetSection("botFileSecret")?.Value;
             var botFilePath = Configuration.GetSection("botFilePath")?.Value;
@@ -165,6 +167,9 @@ namespace Microsoft.BotBuilderSamples
                     await context.SendActivityAsync("Sorry, it looks like something went wrong.");
                 };
             });
+
+            services.AddHttpContextAccessor();
+
             services.AddMvc();
         }
 
