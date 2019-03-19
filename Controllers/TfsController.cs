@@ -83,7 +83,7 @@ namespace BasicBot.Controllers
 
             await SendToAllClients(id, $"{request.DetailedMessage.TrimmedMarkdown}");
 
-            return Ok();
+            return Ok("Messages send to all clients in Skype");
         }
 
         private async Task<string> GetCodeCheckedInMessage(CodeCheckedInRequest req, IDictionary<string, string> branches)
