@@ -59,17 +59,26 @@ namespace BasicBot.Controllers
         [Route("~/tfs/itemupdate/{id}")]
         public async Task<IActionResult> ItemStateChanged(string id, [FromBody] ItemUpdatedRequest request, [FromHeader] string[] states, [FromQuery] bool withChangeset = false)
         {
+            if (!request.Resource.Fields.TryGetValue("System.State", out var field))
+            {
+                return Ok("State doesn't updated.");
+            }
+
+            if (!(field.NewValue is string newState))
+            {
+                return Ok("New value isn't string.");
+            }
+
+            if (states != null && states.Length > 0 && !states.Contains(newState))
+            {
+                return Ok($"States from header doesn't contains {newState}.");
+            }
+
             var isUpdatedWithChangeset = request.Resource.Relations?.Added?.Any(x => x.Attributes != null && x.Attributes.TryGetValue("name", out var name) && name == "Fixed in Changeset") == true;
 
-            var shouldReturn = request.Resource == null
-                || !request.Resource.Fields.TryGetValue("System.State", out var field)
-                || !(field.NewValue is string newState)
-                || (states != null && states.Length != 0 && !states.Contains(newState))
-                || (!withChangeset && isUpdatedWithChangeset);
-
-            if (shouldReturn)
+            if (!withChangeset && isUpdatedWithChangeset)
             {
-                return Ok();
+                return Ok($"Item updated with change set and parameter {nameof(withChangeset)} set to false.");
             }
 
             await SendToAllClients(id, $"{request.DetailedMessage.TrimmedMarkdown}");
