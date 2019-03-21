@@ -59,31 +59,47 @@ namespace BasicBot.Controllers
         [Route("~/tfs/itemupdate/{id}")]
         public async Task<IActionResult> ItemStateChanged(string id, [FromBody] ItemUpdatedRequest request, [FromHeader] string[] states, [FromQuery] bool withChangeset = false)
         {
-            if (!request.Resource.Fields.TryGetValue("System.State", out var field))
+            string result = null;
+            try
             {
-                return Ok("State doesn't updated.");
-            }
+                if (!request.Resource.Fields.TryGetValue("System.State", out var field))
+                {
+                    result = "State doesn't updated.";
+                    return Ok(result);
+                }
 
-            if (!(field.NewValue is string newState))
+                if (!(field.NewValue is string newState))
+                {
+                    result = "New value isn't string.";
+                    return Ok(result);
+                }
+
+                if (states != null && states.Length > 0 && !states.Contains(newState))
+                {
+                    result = $"States from header doesn't contains {newState}.";
+                    return Ok(result);
+                }
+
+                var isUpdatedWithChangeset = request.Resource.Relations?.Added?.Any(x => x.Attributes != null && x.Attributes.TryGetValue("name", out var name) && name == "Fixed in Changeset") == true;
+
+                if (!withChangeset && isUpdatedWithChangeset)
+                {
+                    result = $"Item updated with change set and parameter {nameof(withChangeset)} set to false.";
+                    return Ok(result);
+                }
+
+                await SendToAllClients(id, $"{request.DetailedMessage.TrimmedMarkdown}");
+
+                result = "Messages were sent to all clients in Skype";
+                return Ok(result);
+            }
+            finally
             {
-                return Ok("New value isn't string.");
+                if (!string.IsNullOrWhiteSpace(result))
+                {
+                    HttpContext.Response.Headers.Add("ResultMessage", new Microsoft.Extensions.Primitives.StringValues(result));
+                }
             }
-
-            if (states != null && states.Length > 0 && !states.Contains(newState))
-            {
-                return Ok($"States from header doesn't contains {newState}.");
-            }
-
-            var isUpdatedWithChangeset = request.Resource.Relations?.Added?.Any(x => x.Attributes != null && x.Attributes.TryGetValue("name", out var name) && name == "Fixed in Changeset") == true;
-
-            if (!withChangeset && isUpdatedWithChangeset)
-            {
-                return Ok($"Item updated with change set and parameter {nameof(withChangeset)} set to false.");
-            }
-
-            await SendToAllClients(id, $"{request.DetailedMessage.TrimmedMarkdown}");
-
-            return Ok("Messages were sent to all clients in Skype");
         }
 
         private async Task<string> GetCodeCheckedInMessage(CodeCheckedInRequest req, IDictionary<string, string> branches)

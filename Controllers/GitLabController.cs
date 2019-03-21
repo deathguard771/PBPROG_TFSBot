@@ -39,7 +39,7 @@ namespace BasicBot.Controllers
 
         private IEnumerable<string> GetPushMessage(PushRequest req)
         {
-            yield return $"**PUSHED by {req.UserName}**";
+            yield return $"**PUSHED by {req.UserName} in {req.Ref}**";
 
             yield return Environment.NewLine;
 
@@ -52,17 +52,16 @@ namespace BasicBot.Controllers
                     yield return $"_Added_";
                     foreach (var add in commit.Added)
                     {
-                        yield return $"{{code}}{add}{{code}}";
+                        yield return add;
                     }
                 }
-
 
                 if (commit.Modified.Any())
                 {
                     yield return $"_Modified_";
                     foreach (var mod in commit.Modified)
                     {
-                        yield return $"{{code}}{mod}{{code}}";
+                        yield return mod;
                     }
                 }
 
@@ -71,7 +70,7 @@ namespace BasicBot.Controllers
                     yield return $"_Removed_";
                     foreach (var rem in commit.Removed)
                     {
-                        yield return $"{{code}}{rem}{{code}}";
+                        yield return rem;
                     }
                 }
 
