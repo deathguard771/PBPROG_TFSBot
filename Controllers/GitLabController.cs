@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using BasicBot.Dto;
 using BasicBot.Infrastructure;
@@ -26,15 +27,29 @@ namespace BasicBot.Controllers
         [Route("~/gitlab/push/{id}")]
         public async Task<IActionResult> CodeCheckedIn(string id, [FromBody] PushRequest req)
         {
-            var messages = GetPushMessage(req);
-            var clients = await _repository.GetServerClients(id);
-
-            foreach (var client in clients)
+            try
             {
-                await _skypeHelper.SendMessage(client, string.Join(Environment.NewLine, messages));
-            }
+                var messages = GetPushMessage(req);
+                var clients = await _repository.GetServerClients(id);
 
-            return Ok();
+                var message = string.Join("\n", messages);
+
+                message = Regex.Replace(message, "<[^>]*>", string.Empty);
+
+                // message = Regex.Replace(message, @"\n?\r?(\r\n){2,}", Environment.NewLine);
+
+                foreach (var client in clients)
+                {
+                    await _skypeHelper.SendMessage(client, message);
+                }
+
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                HttpContext.Response.Headers.Add("ExceptionStackTrace", new Microsoft.Extensions.Primitives.StringValues(ex.StackTrace));
+                return Ok(ex.Message);
+            }
         }
 
         private IEnumerable<string> GetPushMessage(PushRequest req)
@@ -42,6 +57,11 @@ namespace BasicBot.Controllers
             yield return $"**PUSHED by {req.UserName} in {req.Ref}**";
 
             yield return Environment.NewLine;
+
+            if (req?.Commits == null)
+            {
+                yield break;
+            }
 
             foreach (var commit in req.Commits)
             {
@@ -74,9 +94,9 @@ namespace BasicBot.Controllers
                     }
                 }
 
-                yield return commit.Message;
+                yield return commit.Message?.TrimEnd();
 
-                yield return Environment.NewLine;
+                yield return "\n";
             }
         }
     }

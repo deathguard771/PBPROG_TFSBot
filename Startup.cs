@@ -170,7 +170,12 @@ namespace Microsoft.BotBuilderSamples
 
             services.AddHttpContextAccessor();
 
-            services.AddMvc();
+            services.AddMvc()
+                .AddJsonOptions(x =>
+                {
+                    x.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
+                    x.SerializerSettings.PreserveReferencesHandling = Newtonsoft.Json.PreserveReferencesHandling.Objects;
+                });
         }
 
         /// <summary>
